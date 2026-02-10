@@ -29,7 +29,17 @@ const accessChat = asyncHandler(async (req, res) => {
   });
 
   if (isChat.length > 0) {
-    res.send(isChat[0]);
+    // Undelete logic: If user had deleted this chat, restore it on access
+    // But only if they are still a member (which they are if found by above query)
+    const chat = isChat[0];
+    // Check if current user is in deletedBy
+    const isDeleted = chat.deletedBy && chat.deletedBy.some(id => id.toString() === req.user._id.toString());
+
+    if (isDeleted) {
+      await Chat.findByIdAndUpdate(chat._id, { $pull: { deletedBy: req.user._id } });
+    }
+
+    res.send(chat);
   } else {
     var chatData = {
       chatName: "sender",
@@ -56,7 +66,11 @@ const accessChat = asyncHandler(async (req, res) => {
 //@access          Protected
 const fetchChats = asyncHandler(async (req, res) => {
   try {
-    Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
+    // Filter out chats where the user is in the 'deletedBy' array
+    Chat.find({
+      users: { $elemMatch: { $eq: req.user._id } },
+      deletedBy: { $nin: [req.user._id] }
+    })
       .populate("users", "-password")
       .populate("groupAdmin", "-password")
       .populate("latestMessage")
@@ -193,6 +207,33 @@ const addToGroup = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Soft Delete Chat
+// @route   DELETE /api/chat/:chatId
+// @access  Protected
+const deleteChat = asyncHandler(async (req, res) => {
+  const { chatId } = req.params;
+
+  // 1. Verify user is in the chat
+  const chat = await Chat.findOne({
+    _id: chatId,
+    users: { $elemMatch: { $eq: req.user._id } }
+  });
+
+  if (!chat) {
+    res.status(404);
+    throw new Error("Chat Not Found or Not Authorized");
+  }
+
+  // 2. Add to deletedBy (Soft Delete)
+  const updatedChat = await Chat.findByIdAndUpdate(
+    chatId,
+    { $addToSet: { deletedBy: req.user._id } },
+    { new: true }
+  );
+
+  res.json({ message: "Chat Deleted", chatId: updatedChat._id });
+});
+
 module.exports = {
   accessChat,
   fetchChats,
@@ -200,4 +241,5 @@ module.exports = {
   renameGroup,
   addToGroup,
   removeFromGroup,
+  deleteChat
 };

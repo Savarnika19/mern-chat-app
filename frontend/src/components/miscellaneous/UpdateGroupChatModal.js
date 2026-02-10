@@ -203,6 +203,40 @@ const UpdateGroupChatModal = ({ fetchMessages, fetchAgain, setFetchAgain }) => {
     setGroupChatName("");
   };
 
+  const handleDeleteChat = async () => {
+    try {
+      setLoading(true);
+      const config = {
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
+      await axios.delete(`/api/chat/${selectedChat._id}`, config);
+
+      setSelectedChat(null);
+      setFetchAgain(!fetchAgain);
+      setLoading(false);
+      onClose();
+      toast({
+        title: "Chat Deleted",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom",
+      });
+    } catch (error) {
+      toast({
+        title: "Error Occured!",
+        description: error.response?.data?.message || "Failed to delete chat",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom",
+      });
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <IconButton d={{ base: "flex" }} icon={<ViewIcon />} onClick={onOpen} />
@@ -269,6 +303,9 @@ const UpdateGroupChatModal = ({ fetchMessages, fetchAgain, setFetchAgain }) => {
             )}
           </ModalBody>
           <ModalFooter>
+            <Button onClick={() => handleDeleteChat()} colorScheme="red" mr={3}>
+              Delete Chat
+            </Button>
             <Button onClick={() => handleRemove(user)} colorScheme="red">
               Leave Group
             </Button>

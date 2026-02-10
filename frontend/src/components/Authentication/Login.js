@@ -60,7 +60,7 @@ const Login = () => {
     } catch (error) {
       toast({
         title: "Error Occured!",
-        description: error.response.data.message,
+        description: error.response?.data?.message || error.message || "Something went wrong",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -73,47 +73,59 @@ const Login = () => {
   return (
     <VStack spacing="10px">
       <FormControl id="email" isRequired>
-        <FormLabel>Email Address</FormLabel>
+        <FormLabel color="black">Email Address</FormLabel>
         <Input
           value={email}
           type="email"
           placeholder="Enter Your Email Address"
           onChange={(e) => setEmail(e.target.value)}
+          bg="white"
+          borderColor="gray.300"
+          _placeholder={{ color: "gray.500" }}
         />
       </FormControl>
       <FormControl id="password" isRequired>
-        <FormLabel>Password</FormLabel>
+        <FormLabel color="black">Password</FormLabel>
         <InputGroup size="md">
           <Input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type={show ? "text" : "password"}
             placeholder="Enter password"
+            bg="white"
+            borderColor="gray.300"
+            _placeholder={{ color: "gray.500" }}
           />
           <InputRightElement width="4.5rem">
-            <Button h="1.75rem" size="sm" onClick={handleClick}>
+            <Button h="1.75rem" size="sm" onClick={handleClick} variant="ghost">
               {show ? "Hide" : "Show"}
             </Button>
           </InputRightElement>
         </InputGroup>
       </FormControl>
       <Button
-        colorScheme="blue"
+        colorScheme="purple"
         width="100%"
         style={{ marginTop: 15 }}
         onClick={submitHandler}
         isLoading={loading}
+        bgGradient="linear(to-r, purple.400, pink.400)"
+        _hover={{
+          bgGradient: "linear(to-r, purple.500, pink.500)",
+          transform: "scale(1.02)",
+        }}
       >
         Login
       </Button>
       <Button
-        variant="solid"
+        variant="outline"
         colorScheme="red"
         width="100%"
         onClick={() => {
           setEmail("guest@example.com");
           setPassword("123456");
         }}
+        _hover={{ bg: "red.50" }}
       >
         Get Guest User Credentials
       </Button>

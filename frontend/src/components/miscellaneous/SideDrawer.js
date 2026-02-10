@@ -26,11 +26,10 @@ import { useToast } from "@chakra-ui/toast";
 import ChatLoading from "../ChatLoading";
 import { Spinner } from "@chakra-ui/spinner";
 import ProfileModal from "./ProfileModal";
-import NotificationBadge from "react-notification-badge";
-import { Effect } from "react-notification-badge";
 import { getSender } from "../../config/ChatLogics";
 import UserListItem from "../userAvatar/UserListItem";
 import { ChatState } from "../../Context/ChatProvider";
+import GlobalDeadlineDrawer from "../GlobalDeadlineDrawer";
 
 function SideDrawer() {
   const [search, setSearch] = useState("");
@@ -49,6 +48,7 @@ function SideDrawer() {
 
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isDeadlineOpen, onOpen: onDeadlineOpen, onClose: onDeadlineClose } = useDisclosure();
   const history = useHistory();
 
   const logoutHandler = () => {
@@ -141,17 +141,40 @@ function SideDrawer() {
             </Text>
           </Button>
         </Tooltip>
+
+        <Tooltip label="Deadlines Tracker" hasArrow placement="bottom">
+          <Button variant="ghost" onClick={onDeadlineOpen}>
+            <Text fontSize="2xl">⏰</Text>
+          </Button>
+        </Tooltip>
+
         <Text fontSize="2xl" fontFamily="Work sans">
           Talk-A-Tive
         </Text>
         <div>
           <Menu>
             <MenuButton p={1}>
-              <NotificationBadge
-                count={notification.length}
-                effect={Effect.SCALE}
-              />
-              <BellIcon fontSize="2xl" m={1} />
+              <Box position="relative" display="inline-block">
+                <BellIcon fontSize="2xl" m={1} />
+                {notification.length > 0 && (
+                  <Box
+                    color="white"
+                    bg="red"
+                    borderRadius="full"
+                    position="absolute"
+                    top="-2px"
+                    right="0"
+                    fontSize="xs"
+                    w="18px"
+                    h="18px"
+                    d="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    {notification.length}
+                  </Box>
+                )}
+              </Box>
             </MenuButton>
             <MenuList pl={2}>
               {!notification.length && "No New Messages"}
@@ -219,6 +242,7 @@ function SideDrawer() {
           </DrawerBody>
         </DrawerContent>
       </Drawer>
+      <GlobalDeadlineDrawer isOpen={isDeadlineOpen} onClose={onDeadlineClose} />
     </>
   );
 }

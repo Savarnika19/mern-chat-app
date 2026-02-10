@@ -2,7 +2,7 @@ import { FormControl } from "@chakra-ui/form-control";
 import { Input } from "@chakra-ui/input";
 import { Box, Text } from "@chakra-ui/layout";
 import "./styles.css";
-import { IconButton, Spinner, useToast } from "@chakra-ui/react";
+import { IconButton, Spinner, useToast, Button, useDisclosure } from "@chakra-ui/react";
 import { getSender, getSenderFull } from "../config/ChatLogics";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -14,7 +14,9 @@ import animationData from "../animations/typing.json";
 
 import io from "socket.io-client";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
+import SummarizeModal from "./miscellaneous/SummarizeModal";
 import { ChatState } from "../Context/ChatProvider";
+import { motion } from "framer-motion"; // Import motion
 const ENDPOINT = "http://localhost:5000"; // "https://talk-a-tive.herokuapp.com"; -> After deployment
 var socket, selectedChatCompare;
 
@@ -25,6 +27,15 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [typing, setTyping] = useState(false);
   const [istyping, setIsTyping] = useState(false);
+
+
+  // Summarization State
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedMessages, setSelectedMessages] = useState([]);
+  const [summary, setSummary] = useState("");
+  const [summarizeLoading, setSummarizeLoading] = useState(false);
+  const { isOpen: isSummarizeOpen, onOpen: onSummarizeOpen, onClose: onSummarizeClose } = useDisclosure();
+
   const toast = useToast();
 
   const defaultOptions = {
@@ -35,7 +46,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
       preserveAspectRatio: "xMidYMid slice",
     },
   };
-  const { selectedChat, setSelectedChat, user, notification, setNotification } =
+  const { selectedChat, setSelectedChat, user, notification, setNotification, scrollToMessage, setScrollToMessage } =
     ChatState();
 
   const fetchMessages = async () => {
@@ -122,19 +133,25 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   }, [selectedChat]);
 
   useEffect(() => {
-    socket.on("message recieved", (newMessageRecieved) => {
+    const handleMessageReceived = (newMessageRecieved) => {
       if (
-        !selectedChatCompare || // if chat is not selected or doesn't match current chat
+        !selectedChatCompare ||
         selectedChatCompare._id !== newMessageRecieved.chat._id
       ) {
-        if (!notification.includes(newMessageRecieved)) {
+        if (!notification.some(n => n._id === newMessageRecieved._id)) {
           setNotification([newMessageRecieved, ...notification]);
           setFetchAgain(!fetchAgain);
         }
       } else {
         setMessages([...messages, newMessageRecieved]);
       }
-    });
+    };
+
+    socket.on("message recieved", handleMessageReceived);
+
+    return () => {
+      socket.off("message recieved", handleMessageReceived);
+    };
   });
 
   const typingHandler = (e) => {
@@ -158,6 +175,104 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
     }, timerLength);
   };
 
+  const handleSelectMessage = (messageId) => {
+    if (selectedMessages.includes(messageId)) {
+      setSelectedMessages(selectedMessages.filter((id) => id !== messageId));
+    } else {
+      setSelectedMessages([...selectedMessages, messageId]);
+    }
+  };
+
+  const handleSummarize = async (type) => {
+    setSummarizeLoading(true);
+    onSummarizeOpen();
+    try {
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
+
+      const payload = type === "unread" ? { chatId: selectedChat._id } : { messageIds: selectedMessages };
+
+      const { data } = await axios.post("/api/message/summarize", payload, config);
+      setSummary(data.summary);
+      setSummarizeLoading(false);
+
+      // Reset selection mode if used
+      if (type === "selected") {
+        setIsSelectionMode(false);
+        setSelectedMessages([]);
+      }
+    } catch (error) {
+      setSummary("Error generating summary.");
+      setSummarizeLoading(false);
+      toast({
+        title: "Error",
+        description: "Failed to generate summary",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom",
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`,
+        },
+      };
+
+      await axios.post("/api/message/delete", { messageIds: selectedMessages }, config);
+
+      // Remove from local state
+      setMessages(messages.filter(m => !selectedMessages.includes(m._id)));
+      setSelectedMessages([]);
+      setIsSelectionMode(false);
+      toast({
+        title: "Success",
+        description: "Messages deleted",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+        position: "bottom",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete messages",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "bottom",
+      });
+    }
+  };
+
+  // Check for unreads (naive check: messages not read by me)
+  const hasUnreadMessages = messages && messages.some(m => !m.readBy.includes(user._id) && m.sender._id !== user._id);
+
+  const handleDeleteChat = async () => {
+    if (!window.confirm("Are you sure you want to delete this chat?")) return;
+    try {
+      const config = {
+        headers: { Authorization: `Bearer ${user.token}` },
+      };
+      await axios.delete(`/api/chat/${selectedChat._id}`, config);
+
+      setSelectedChat(null);
+      setFetchAgain(!fetchAgain);
+      toast({ title: "Chat Deleted", status: "success", duration: 3000, isClosable: true, position: "bottom" });
+    } catch (error) {
+      toast({ title: "Error Deleting Chat", description: error.message, status: "error", duration: 3000, isClosable: true, position: "bottom" });
+    }
+  };
+
   return (
     <>
       {selectedChat ? (
@@ -167,10 +282,13 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
             pb={3}
             px={2}
             w="100%"
-            fontFamily="Work sans"
+            fontFamily="Outfit"
             d="flex"
             justifyContent={{ base: "space-between" }}
             alignItems="center"
+            color="white"
+            fontWeight="bold"
+            style={{ textShadow: "0 2px 4px rgba(0,0,0,0.2)" }}
           >
             <IconButton
               d={{ base: "flex", md: "none" }}
@@ -184,6 +302,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                   <ProfileModal
                     user={getSenderFull(user, selectedChat.users)}
                   />
+                  <IconButton
+                    d={{ base: "flex" }}
+                    icon={<i className="fas fa-trash"></i>} // FontAwesome trash icon or import from chakra
+                    colorScheme="red"
+                    size="sm"
+                    ml={2}
+                    onClick={() => handleDeleteChat()}
+                  />
                 </>
               ) : (
                 <>
@@ -196,16 +322,45 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
                 </>
               ))}
           </Text>
+
+          {/* Summarization Controls */}
+          <Box d="flex" pb={2} justifyContent="flex-end">
+            {hasUnreadMessages && !isSelectionMode && (
+              <Button size="xs" colorScheme="purple" mr={2} onClick={() => handleSummarize("unread")}>
+                Summarize Unread
+              </Button>
+            )}
+            {!isSelectionMode ? (
+              <Button size="xs" onClick={() => setIsSelectionMode(true)}>
+                Select Messages
+              </Button>
+            ) : (
+              <>
+                <Button size="xs" colorScheme="teal" mr={2} onClick={() => handleSummarize("selected")} disabled={selectedMessages.length === 0}>
+                  Summarize ({selectedMessages.length})
+                </Button>
+                <Button size="xs" colorScheme="red" mr={2} onClick={handleDelete} disabled={selectedMessages.length === 0}>
+                  Delete
+                </Button>
+                <Button size="xs" onClick={() => { setIsSelectionMode(false); setSelectedMessages([]); }}>
+                  Cancel
+                </Button>
+              </>
+            )}
+          </Box>
+
           <Box
             d="flex"
             flexDir="column"
             justifyContent="flex-end"
             p={3}
-            bg="#E8E8E8"
+            bg="rgba(255, 255, 255, 0.6)"
             w="100%"
-            h="100%"
-            borderRadius="lg"
+            flex={1}
+            borderRadius="xl"
             overflowY="hidden"
+            backdropFilter="blur(10px)"
+            boxShadow="inset 0 0 20px rgba(255,255,255,0.5)"
           >
             {loading ? (
               <Spinner
@@ -217,7 +372,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
               />
             ) : (
               <div className="messages">
-                <ScrollableChat messages={messages} />
+                <ScrollableChat
+                  messages={messages}
+                  isSelectionMode={isSelectionMode}
+                  selectedMessages={selectedMessages}
+                  onSelectMessage={handleSelectMessage}
+                  scrollToMessage={scrollToMessage}
+                  setScrollToMessage={setScrollToMessage}
+                />
               </div>
             )}
 
@@ -257,6 +419,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain }) => {
           </Text>
         </Box>
       )}
+      <SummarizeModal isOpen={isSummarizeOpen} onClose={onSummarizeClose} summary={summary} loading={summarizeLoading} />
     </>
   );
 };
