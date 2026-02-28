@@ -1,11 +1,27 @@
-@import url("https://fonts.googleapis.com/css2?family=Work+Sans:wght@300&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700&family=Work+Sans:wght@300&display=swap");
 
 .App {
   min-height: 100vh;
   display: flex;
-  background-image: url("./background.png");
-  background-position: center;
-  background-size: cover;
+  /* background removed for Three.js */
+  font-family: 'Outfit', sans-serif;
+  position: relative;
+  z-index: 1;
+  /* Ensure app content is above canvas */
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -19,4 +35,29 @@
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Message Highlight Animation */
+.highlight-message {
+  animation: highlight-anim 2s ease-out forwards;
+}
+
+@keyframes highlight-anim {
+  0% {
+    background-color: #ffd700 !important;
+    /* Gold highlight */
+    transform: scale(1.05);
+    box-shadow: 0 0 10px #ffd700;
+  }
+
+  20% {
+    background-color: #ffd700 !important;
+    transform: scale(1.05);
+  }
+
+  100% {
+    background-color: inherit;
+    transform: scale(1);
+    box-shadow: none;
+  }
 }

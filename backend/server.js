@@ -7,7 +7,7 @@ const messageRoutes = require("./routes/messageRoutes");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const path = require("path");
 
-dotenv.config();
+dotenv.config({ path: "backend/.env" });
 connectDB();
 const app = express();
 
@@ -89,3 +89,5 @@ io.on("connection", (socket) => {
     socket.leave(userData._id);
   });
 });
+console.log("ENV PORT:", process.env.PORT);
+console.log("ENV MONGO_URI:", process.env.MONGO_URI);

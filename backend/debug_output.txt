@@ -1,0 +1,16 @@
+GEMINI_API_KEY is present.
+--- Test 1: Standard Conversation ---
+All chunks failed. Errors: [
+  '[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [404 Not Found] models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.'
+]
+Gemini Aggregation Failed: All extractions failed: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [404 Not Found] models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+Using TextRank Fallback
+Summary Result: I'll handle backend API. I'll handle the frontend. I'll monitor the logs.
+FAILED: Missing deadline
+FAILED: Missing deployment
+
+--- Test 2: Rate Limit Safeguard ---
+SUCCESS: Rate limit triggered correctly.
+
+--- Test 3: Oversized Input Guard ---
+SUCCESS: Input size guard triggered.
